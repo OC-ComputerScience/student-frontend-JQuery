@@ -1,0 +1,159 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+</head>
+<body>
+<script>
+    $.urlParam = function(name) {
+        var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+        if(results == null) {
+            return null;
+        } else {
+            return results[1] || 0;
+        }
+    };
+
+    function getLocation(zip) {
+        if(zip !== '') {
+            $.getJSON('/api/zip/' + zip)
+                .done(function(data) {
+                    var city = $('#city');
+                    var state = $('#state');
+                    if(city.val() === '')
+                        city.val(data.city);
+                    if(state.val() === '')
+                        state.val(data.state_code);
+                });
+        }
+    }
+
+    $(document).ready(function() {
+        $('#zip').blur(function() {
+            getLocation($(this).val());
+        });
+
+        $.getJSON('/api/students/' + $.urlParam('id'))
+            .done(function(response) {
+                $('#id').val(response[0].idNumber);
+                $('#firstName').val(response[0].firstName);
+                $('#lastName').val(response[0].lastName);
+                $('#city').val(response[0].city);
+                $('#state').val(response[0].state);
+                $('#zip').val(response[0].zip);
+                $('#email').val(response[0].email);
+                $('#' + response[0].classification).prop('checked', true);
+                $('#' + response[0].gender).prop('checked', true);
+            })
+            .fail(function(jqXHR, textStatus, errorThrown) {
+                console.log('error ' + textStatus);
+                console.log('incoming Text ' + jqXHR.responseText);
+            });
+
+        $('#studentForm').submit(function(e) {
+            e.preventDefault();
+            var idNumber = $('#id').val();
+            var firstName = $('#firstName').val();
+            var lastName = $('#lastName').val();
+            var city = $('#city').val();
+            var state = $('#state').val();
+            var zip = $('#zip').val();
+            var email = $('#email').val();
+            var classification = $('input[name=\'classification\']:checked').val();
+            if(classification == null)
+                classification = '';
+            var gender = $('input[name=\'gender\']:checked').val();
+            if(gender == null)
+                gender = '';
+
+            $.ajax({
+                url: '/api/students/' + $.urlParam('id'),
+                type: 'PUT',
+                dataType: 'json',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    id: $.urlParam('id'),
+                    idNumber: idNumber,
+                    firstName: firstName,
+                    lastName: lastName,
+                    city: city,
+                    state: state,
+                    zip: zip,
+                    email: email,
+                    classification: classification,
+                    gender: gender
+                }),
+                statusCode: {
+                    200: function(response) {
+                        $('#page-message').html('Record Updated');
+                        window.location.assign('student-list.html');
+                    },
+                    406: function(response) {
+                        var errors = response.responseJSON;
+                        $('.error').html('*');
+                        $.each(errors, function(i, message) {
+                            $('#' + message.attributeName + 'Err').html(message.message);
+                            console.log('Error ' + message.attributeName + ' ' + message.message);
+                        });
+                        $('#page-message').html('Fix errors and click Save');
+                    },
+                    404: function(jqXHR, textStatus, errorThrown) {
+                        $('#page-message').html('Error:' + textStatus);
+                        console.log(errorThrown);
+                        console.log('error ' + textStatus);
+                        console.log('incoming Text ' + jqXHR.responseText);
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+<h2>Student Update</h2>
+<p id="debug"></p>
+<div class="block-center">
+    <p><span class="error-head">* required field.</span></p>
+    <p><span id="page-messge">Enter fields and click Save</span></p>
+    <form id="studentForm">
+        Id: <input type="text" id="id">
+        <span id="idNumberErr" class="error">* </span>
+        <br><br>
+        Fist Name: <input type="text" id="firstName">
+        <span id="firstNameErr" class="error">* </span>
+        <br><br>
+        Last Name: <input type="text" id="lastName">
+        <span id="lastNameErr" class="error">* </span>
+        <br><br>
+        Zip: <input type="text" id="zip">
+        <span id="zipErr" class="error">* </span>
+        <br><br>
+        City: <input type="text" id="city">
+        <span id="cityErr" class="error">* </span>
+        <br><br>
+        State: <input type="text" id="state">
+        <span id="stateErr" class="error">* </span>
+        <br><br>
+        E-mail: <input type="text" id="email">
+        <span id="emailErr" class="error">* </span>
+        <br><br>
+        Classification:
+        <input id="FR" type="radio" name="classification" value="FR">Freshman
+        <input id="SO" type="radio" name="classification" value="SO">Sophmore
+        <input id="JR" type="radio" name="classification" value="JR">Junior
+        <input id="SR" type="radio" name="classification" value="SR">Senior
+        <span id="classificationErr" class="error">* </span>
+        <br><br>
+        Gender:
+        <input id="F" type="radio" name="gender" value="F">Female
+        <input id="M" type="radio" name="gender" value="M">Male
+        <span id="genderErr" class="error">* </span>
+        <br><br>
+        <input type="submit" name="submit" value="Save">
+    </form>
+    <form action="student-list.html" method="get">
+        <button type="submit">Cancel</button>
+    </form>
+</div>
+</body>
+</html>
